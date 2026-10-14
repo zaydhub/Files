@@ -1,0 +1,8 @@
+{
+  "appId": "com.zayd.files",
+  "appName": "Files",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  }
+}
