@@ -1,0 +1,141 @@
+name: Build Files APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Prepare web files
+        run: |
+          mkdir -p www
+          cp index.html www/
+          cp manifest.json www/
+          cp sw.js www/
+          cp -r css www/
+          cp -r js www/
+          cp -r icons www/
+          mkdir -p www/fonts
+          if [ -d fonts ]; then cp fonts/*.ttf www/fonts/ 2>/dev/null || true; fi
+
+      - name: Install Capacitor Assets
+        run: npm install --no-save @capacitor/assets
+
+      - name: Prepare native icon source
+        run: |
+          mkdir -p assets
+          cp icon.png assets/icon.png
+
+      - name: Initialize Capacitor Android
+        run: npx cap add android
+
+      - name: Install FilesystemExt plugin
+        run: |
+          PKG="android/app/src/main/java/com/zayd/files"
+          mkdir -p "$PKG"
+          cp android-plugin/FilesystemExtPlugin.java "$PKG/"
+          cp android-plugin/MainActivity.java "$PKG/"
+
+          MANIFEST="android/app/src/main/AndroidManifest.xml"
+          python3 - << 'PYEOF'
+          import re
+          manifest = "android/app/src/main/AndroidManifest.xml"
+          with open(manifest, "r") as f:
+              content = f.read()
+
+          perms = '''
+              <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+              <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+              <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
+              <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+              <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+              <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+          '''
+
+          if "MANAGE_EXTERNAL_STORAGE" not in content:
+              content = content.replace("</manifest>", perms + "\n</manifest>")
+
+          if "android:requestLegacyExternalStorage" not in content:
+              content = content.replace(
+                  '<application',
+                  '<application android:requestLegacyExternalStorage="true"',
+                  1
+              )
+
+          with open(manifest, "w") as f:
+              f.write(content)
+          PYEOF
+
+          # Android 10 legacy + FileProvider paths
+          mkdir -p android/app/src/main/res/xml
+          cat > android/app/src/main/res/xml/file_paths.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <paths xmlns:android="http://schemas.android.com/apk/res/android">
+              <external-path name="external" path="." />
+              <external-files-path name="external_files" path="." />
+              <files-path name="files" path="." />
+              <cache-path name="cache" path="." />
+          </paths>
+          EOF
+
+          python3 - << 'PYEOF'
+          manifest = "android/app/src/main/AndroidManifest.xml"
+          with open(manifest, "r") as f:
+              content = f.read()
+
+          provider = '''
+              <provider
+                  android:name="androidx.core.content.FileProvider"
+                  android:authorities="${applicationId}.fileprovider"
+                  android:exported="false"
+                  android:grantUriPermissions="true">
+                  <meta-data
+                      android:name="android.support.FILE_PROVIDER_PATHS"
+                      android:resource="@xml/file_paths" />
+              </provider>
+          '''
+
+          if "androidx.core.content.FileProvider" not in content:
+              content = content.replace("</application>", provider + "\n    </application>")
+
+          with open(manifest, "w") as f:
+              f.write(content)
+          PYEOF
+
+      - name: Generate native Android icons
+        run: npx capacitor-assets generate --android --iconBackgroundColor '#ffffff' --iconBackgroundColorDark '#ffffff'
+
+      - name: Sync Capacitor
+        run: npx cap sync android
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Build APK
+        working-directory: android
+        run: ./gradlew assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Files-APK
+          path: android/app/build/outputs/apk/debug/app-debug.apk
