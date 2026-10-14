@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Files">
+  <defs>
+    <linearGradient id="folderGradM" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5eb0ff"/>
+      <stop offset="1" stop-color="#0a84ff"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" fill="#ffffff"/>
+  <path d="M116 188a32 32 0 0 1 32-32h80a16 16 0 0 1 11.3 4.7l22.6 22.6a16 16 0 0 0 11.3 4.7H364a32 32 0 0 1 32 32v152a32 32 0 0 1-32 32H148a32 32 0 0 1-32-32z"
+        fill="url(#folderGradM)"/>
+</svg>
