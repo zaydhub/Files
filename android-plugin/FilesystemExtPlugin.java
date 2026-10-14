@@ -17,8 +17,6 @@ import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 
-import org.json.JSONException;
-
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -113,7 +111,7 @@ public class FilesystemExtPlugin extends Plugin {
                         item.put("extension", "");
                     }
                     items.put(item);
-                } catch (JSONException e) { }
+                } catch (Exception e) { }
             }
         }
         JSObject ret = new JSObject();
